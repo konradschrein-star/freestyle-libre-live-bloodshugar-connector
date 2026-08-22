@@ -12,6 +12,12 @@ python generate_icon.py
 python -m PyInstaller --noconfirm --onefile --windowed ^
     --icon="assets/app_icon.ico" ^
     --add-data "src/static;src/static" ^
+    --hidden-import="uvicorn.lifespan.off" ^
+    --hidden-import="uvicorn.lifespan.on" ^
+    --hidden-import="uvicorn.protocols.http.auto" ^
+    --hidden-import="uvicorn.protocols.http.h11_impl" ^
+    --hidden-import="uvicorn.protocols.websockets.auto" ^
+    --hidden-import="anyio._backends._asyncio" ^
     --name "FreeStyleLibreTaskbar" ^
     main.py
 
