@@ -5,14 +5,12 @@ automatic background startup, local web dashboard, and system tray monitor.
 """
 
 from __future__ import annotations
-import asyncio
 import logging
 import os
 import socket
 import sys
 import threading
 import time
-import webbrowser
 import uvicorn
 
 # 1. Ensure sys.stdout and sys.stderr are valid (prevent crashes in PyInstaller --windowed mode)
@@ -26,6 +24,7 @@ from src.storage import DatabaseManager
 from src.web_server import create_app
 from src.tray_app import TrayApplication
 from src.autostart import set_autostart, is_autostart_enabled
+from src.desktop_window import show_desktop_window
 
 # Configure logging to write to %APPDATA%/FreeStyleLibreTaskbar/app.log and console
 log_dir = get_app_data_dir()
@@ -38,6 +37,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout),
         logging.FileHandler(str(log_file), encoding="utf-8"),
     ],
+    force=True,
 )
 logger = logging.getLogger("Main")
 
@@ -69,22 +69,16 @@ def wait_for_port(host: str, port: int, timeout: float = 6.0) -> bool:
 
 
 def run_web_server(app, host: str, port: int) -> None:
-    """Run uvicorn ASGI server in background thread with dedicated asyncio event loop."""
+    """Run uvicorn ASGI server in background thread."""
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        config = uvicorn.Config(
-            app=app,
+        uvicorn.run(
+            app,
             host=host,
             port=port,
             log_level="error",
             log_config=None,  # Do not attach stdout formatters in windowed mode
             access_log=False,
-            loop="asyncio",
         )
-        server = uvicorn.Server(config)
-        loop.run_until_complete(server.serve())
     except Exception as e:
         logger.error(f"Fatal error in web server thread: {e}", exc_info=True)
 
@@ -96,8 +90,8 @@ def main() -> None:
 
     # 1. Single-Instance Check (PowerToys behavior: focus existing instance if already running)
     if not is_port_available(cfg.web_host, cfg.web_port):
-        logger.info(f"Port {cfg.web_port} already in use. Focusing existing instance in browser...")
-        webbrowser.open(f"http://{cfg.web_host}:{cfg.web_port}")
+        logger.info(f"Port {cfg.web_port} already in use. Focusing existing instance...")
+        show_desktop_window(f"http://{cfg.web_host}:{cfg.web_port}")
         sys.exit(0)
 
     logger.info("Initializing FreeStyle Libre Live Taskbar Connector...")
@@ -127,17 +121,17 @@ def main() -> None:
     )
     web_thread.start()
 
-    # 7. First-run onboarding: Wait until web server is active, then open browser
+    # 7. First-run onboarding: If not configured, launch app window once server is ready
     if not config_mgr.is_configured() or not cfg.setup_completed:
-        logger.info("First run detected: Waiting for web server and launching setup wizard...")
-        def open_browser_when_ready():
+        logger.info("First run detected: Waiting for web server and launching app window...")
+        def open_app_when_ready():
             if wait_for_port(cfg.web_host, cfg.web_port, timeout=8.0):
                 time.sleep(0.2)
-                webbrowser.open(f"http://{cfg.web_host}:{cfg.web_port}")
+                show_desktop_window(f"http://{cfg.web_host}:{cfg.web_port}")
             else:
                 logger.error("Web server did not start within timeout.")
 
-        threading.Thread(target=open_browser_when_ready, daemon=True).start()
+        threading.Thread(target=open_app_when_ready, daemon=True).start()
 
     # 8. Start System Tray event loop (runs on main thread)
     try:

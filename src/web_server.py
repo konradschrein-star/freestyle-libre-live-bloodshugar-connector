@@ -1,6 +1,6 @@
 """
 FreeStyle Libre Live Blood Sugar Connector - Local Web Server & REST API
-Provides local web dashboard, real-time analytics, and in-app connection configuration.
+Provides local web dashboard, real-time analytics, event logging, and in-app configuration.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from .autostart import is_autostart_enabled, set_autostart
 class ConfigUpdateRequest(BaseModel):
     email: str
     password: Optional[str] = None
-    region: str = "eu"
+    region: str = "de"
     unit: str = "mmol/L"
     language: str = "de"
     refresh_interval_seconds: int = 60
@@ -43,7 +43,16 @@ class ConfigUpdateRequest(BaseModel):
 class TestConnectionRequest(BaseModel):
     email: str
     password: str
-    region: str = "eu"
+    region: str = "de"
+
+
+class AddEventRequest(BaseModel):
+    event_type: str  # "meal", "insulin", "exercise", "note"
+    title: str
+    carbs_g: float = 0.0
+    insulin_units: float = 0.0
+    notes: str = ""
+    timestamp: Optional[str] = None
 
 
 def create_app(
@@ -67,15 +76,17 @@ def create_app(
 
     @app.get("/api/current")
     async def get_current() -> Dict[str, Any]:
-        """Fetch current blood sugar reading and connection status."""
+        """Fetch current blood sugar reading, connection status, and rate-of-change velocity."""
         latest = db_mgr.get_latest_reading()
         is_conf = config_mgr.is_configured()
         cfg = config_mgr.config
+        velocity = db_mgr.calculate_velocity()
 
         if not latest:
             return {
                 "status": "configured" if is_conf else "unconfigured",
                 "reading": None,
+                "velocity": velocity,
                 "configured": is_conf,
                 "setup_completed": cfg.setup_completed,
                 "email": cfg.email if is_conf else "",
@@ -104,6 +115,7 @@ def create_app(
         return {
             "status": "active",
             "reading": reading_dict,
+            "velocity": velocity,
             "configured": is_conf,
             "setup_completed": cfg.setup_completed,
             "email": cfg.email,
@@ -112,22 +124,16 @@ def create_app(
 
     @app.get("/api/history")
     async def get_history(hours: int = 24) -> Dict[str, Any]:
-        """Fetch glucose readings history for charting."""
-        cutoff = datetime.datetime.now() - datetime.timedelta(hours=hours)
-        readings = db_mgr.get_readings_since(cutoff)
-        
+        """Fetch optimized, downsampled glucose readings history for high performance."""
         cfg = config_mgr.config
-        points = [
-            {
-                "timestamp": r.timestamp.isoformat(),
-                "time_label": r.timestamp.strftime("%H:%M"),
-                "value_mgdl": r.value_mgdl,
-                "value_mmol": r.value_mmol,
-                "trend_symbol": r.trend_symbol,
-                "color_code": r.measurement_color,
-            }
-            for r in readings
-        ]
+        # Downsample smartly according to timeframe
+        max_pts = 180 if hours <= 24 else (250 if hours <= 168 else 350)
+        points = db_mgr.get_optimized_history(hours=hours, max_points=max_pts)
+
+        # Retrieve events in period for chart markers
+        cutoff = datetime.datetime.now() - datetime.timedelta(hours=hours)
+        events = db_mgr.get_events_since(cutoff)
+
         return {
             "hours": hours,
             "unit": cfg.unit,
@@ -142,7 +148,22 @@ def create_app(
                 "high_mmol": cfg.targets.high_mmol,
             },
             "points": points,
+            "events": events,
         }
+
+    @app.post("/api/events")
+    async def add_event(req: AddEventRequest) -> Dict[str, Any]:
+        """Record a meal, insulin dose, or workout event."""
+        parsed_ts = datetime.datetime.fromisoformat(req.timestamp) if req.timestamp else datetime.datetime.now()
+        event_id = db_mgr.add_event(
+            event_type=req.event_type,
+            title=req.title,
+            carbs_g=req.carbs_g,
+            insulin_units=req.insulin_units,
+            notes=req.notes,
+            timestamp=parsed_ts,
+        )
+        return {"status": "success", "event_id": event_id, "message": "Ereignis gespeichert."}
 
     @app.get("/api/stats")
     async def get_stats(hours: int = 24) -> Dict[str, Any]:
@@ -187,9 +208,9 @@ def create_app(
         """Update settings and trigger re-authentication if credentials changed."""
         cfg = config_mgr.config
         cfg.email = req.email.strip()
-        if req.password:  # Only update password if provided
+        if req.password:
             cfg.password = req.password.strip()
-            cfg.cached_token = None  # Clear cache to force fresh login
+            cfg.cached_token = None
 
         cfg.region = req.region.lower()
         cfg.unit = "mg/dL" if req.unit == "mg/dL" else "mmol/L"
@@ -209,12 +230,9 @@ def create_app(
         cfg.autostart_with_windows = req.autostart_with_windows
         cfg.setup_completed = req.setup_completed
 
-        # Update Windows Registry for Autostart
         set_autostart(req.autostart_with_windows)
-
         config_mgr.save(cfg)
 
-        # Trigger sync immediately in background
         if sync_callback:
             try:
                 sync_callback()
@@ -291,7 +309,6 @@ def create_app(
             return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
         return HTMLResponse(content="<h1>Dashboard wird initialisiert...</h1>")
 
-    # Mount static assets if any
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     return app

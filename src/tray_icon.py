@@ -1,20 +1,21 @@
 """
-FreeStyle Libre Live Blood Sugar Connector - Dynamic Tray Icon Generator
-Renders high-DPI, color-coded taskbar icons with live glucose value (mmol/L or mg/dL) and trend arrow.
+FreeStyle Libre Live Blood Sugar Connector - Dynamic Tray Icon Generator (Redesigned for Maximum Legibility)
+Renders high-contrast, ultra-bold taskbar icons optimized for 16x16, 24x24, 32x32, and high-DPI scaling.
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple
-from PIL import Image, ImageDraw, ImageFont
 import os
+from typing import Optional, Tuple
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 
-# High-contrast modern color palette (RGB)
-COLOR_GREEN = (34, 197, 94)      # #22c55e In target (e.g. 3.9 - 10.0 mmol/L / 70 - 180 mg/dL)
-COLOR_YELLOW = (234, 179, 8)     # #eab308 Warning / High (e.g. 10.0 - 13.9 mmol/L / 180 - 250 mg/dL)
-COLOR_ORANGE = (249, 115, 22)    # #f97316 Low (3.0 - 3.9 mmol/L / 54 - 70 mg/dL)
-COLOR_RED = (239, 68, 68)        # #ef4444 Critical (< 3.0 or > 13.9 mmol/L / < 54 or > 250 mg/dL)
-COLOR_GRAY = (100, 116, 139)     # #64748b Offline / Connecting
+# Modern High-Contrast Medical Color Palette (RGB)
+COLOR_GREEN = (22, 163, 74)       # #16a34a High-Contrast Emerald Green (Normal)
+COLOR_YELLOW = (217, 119, 6)      # #d97706 High-Contrast Amber (High)
+COLOR_ORANGE = (234, 88, 12)      # #ea580c High-Contrast Orange (Low)
+COLOR_RED = (220, 38, 38)         # #dc2626 Bright Urgent Red (Critical)
+COLOR_GRAY = (75, 85, 99)         # #4b5563 Offline / Disconnected
+COLOR_DARK_SLATE = (15, 23, 42)   # #0f172a Deep Background
 COLOR_WHITE = (255, 255, 255)
 COLOR_BLACK = (0, 0, 0)
 
@@ -40,14 +41,15 @@ def get_status_color(
     return COLOR_RED
 
 
-def _find_system_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Load Segoe UI / Arial from Windows fonts directory or fallback to default font."""
+def _find_heavy_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the heaviest, most readable bold font available on Windows."""
     font_candidates = [
-        r"C:\Windows\Fonts\segoeuib.ttf",  # Segoe UI Bold
-        r"C:\Windows\Fonts\arialbd.ttf",   # Arial Bold
-        r"C:\Windows\Fonts\calibrib.ttf",  # Calibri Bold
-        r"C:\Windows\Fonts\segoeui.ttf",   # Segoe UI Regular
-        r"C:\Windows\Fonts\arial.ttf",     # Arial Regular
+        r"C:\Windows\Fonts\ariblk.ttf",     # Arial Black (Maximum weight & readability)
+        r"C:\Windows\Fonts\segoeuib.ttf",   # Segoe UI Bold
+        r"C:\Windows\Fonts\arialbd.ttf",    # Arial Bold
+        r"C:\Windows\Fonts\calibrib.ttf",   # Calibri Bold
+        r"C:\Windows\Fonts\trebucbd.ttf",   # Trebuchet MS Bold
+        r"C:\Windows\Fonts\impact.ttf",     # Impact
     ]
     for path in font_candidates:
         if os.path.exists(path):
@@ -59,6 +61,22 @@ def _find_system_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont
     return ImageFont.load_default()
 
 
+def _find_arrow_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load font for directional trend arrows."""
+    candidates = [
+        r"C:\Windows\Fonts\segoeuib.ttf",
+        r"C:\Windows\Fonts\arialbd.ttf",
+        r"C:\Windows\Fonts\calibrib.ttf",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
 def create_glucose_icon(
     value_str: str,
     trend_symbol: str = "",
@@ -66,74 +84,98 @@ def create_glucose_icon(
     size: int = 64,
 ) -> Image.Image:
     """
-    Generate a dynamic High-DPI icon image for the Windows system tray.
-    Supports both mmol/L (e.g. "6.4", "11.2") and mg/dL (e.g. "115").
+    Generate an ultra-readable High-DPI icon image for the Windows taskbar.
+    
+    Design principles:
+    - Zero wasted margin: Badge fills 96% of the icon box.
+    - Large, heavy-weight typography with maximum contrast.
+    - For decimal numbers (e.g. "8.6"), renders the number large and centered.
+    - Directional indicator badge placed in the corner so it NEVER compresses the main number!
     """
-    # Supersampling 2x (128x128) then downscaling to 64x64 for crystal clear edges
+    # Supersampling 2x (128x128) then downscaling with Lanczos for razor-sharp edges
     canvas_size = size * 2
     img = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Draw rounded background badge
-    pad = 4
-    corner_radius = 24
+    # 1. Draw rounded background badge with dark border for high contrast against light or dark taskbars
+    pad = 2
+    corner_radius = 22
+    
+    # Outer dark shadow/border
     draw.rounded_rectangle(
         [pad, pad, canvas_size - pad, canvas_size - pad],
         radius=corner_radius,
         fill=bg_color,
+        outline=(0, 0, 0, 180),
+        width=2,
     )
 
-    # Arrow symbols mapping for clean rendering
+    # Clean trend arrow symbol
     arrow_char = trend_symbol.strip()
-    if arrow_char == "↓↓":
-        arrow_char = "⇊"
-    elif arrow_char == "↑↑":
-        arrow_char = "⇈"
+    if arrow_char in ("↓↓", "⇊"):
+        arrow_char = "↓"
+    elif arrow_char in ("↑↑", "⇈"):
+        arrow_char = "↑"
 
     val_len = len(value_str)
-    has_arrow = bool(arrow_char and arrow_char != "—")
 
-    # Typography sizing optimized for mmol/L and mg/dL
-    if val_len <= 2:
-        val_font_size = 54 if has_arrow else 60
-    elif val_len == 3:  # e.g. "6.4" or "115"
-        val_font_size = 46 if has_arrow else 52
-    elif val_len == 4:  # e.g. "11.2"
-        val_font_size = 36 if has_arrow else 42
+    # 2. Maximize Font Size for Huge Readability
+    if val_len <= 2:  # e.g. "8", "92"
+        val_font_size = 76
+    elif val_len == 3:  # e.g. "8.6", "115"
+        val_font_size = 62
+    elif val_len == 4:  # e.g. "11.4", "240"
+        val_font_size = 48
     else:
-        val_font_size = 32
+        val_font_size = 40
 
-    font_val = _find_system_font(val_font_size)
-    font_arrow = _find_system_font(38)
+    font_val = _find_heavy_font(val_font_size)
 
-    if has_arrow:
-        # Draw number in upper region and arrow in bottom region
-        val_bbox = draw.textbbox((0, 0), value_str, font=font_val)
-        val_w = val_bbox[2] - val_bbox[0]
-        val_h = val_bbox[3] - val_bbox[1]
+    # Measure main glucose number
+    val_bbox = draw.textbbox((0, 0), value_str, font=font_val)
+    val_w = val_bbox[2] - val_bbox[0]
+    val_h = val_bbox[3] - val_bbox[1]
 
+    # Center number vertically and horizontally
+    val_x = (canvas_size - val_w) // 2
+    val_y = (canvas_size - val_h) // 2 - (val_bbox[1])  # exact baseline correction
+
+    # If an arrow is present, draw a high-contrast indicator in the top right corner
+    if arrow_char and arrow_char != "—":
+        # Draw mini corner badge for arrow
+        arrow_font_size = 36
+        font_arrow = _find_arrow_font(arrow_font_size)
+        
         arrow_bbox = draw.textbbox((0, 0), arrow_char, font=font_arrow)
         arrow_w = arrow_bbox[2] - arrow_bbox[0]
         arrow_h = arrow_bbox[3] - arrow_bbox[1]
 
-        val_x = (canvas_size - val_w) // 2
-        val_y = (canvas_size - val_h - arrow_h) // 2 + 2
+        # Draw a small pill in top-right or bottom-right
+        indicator_size = 32
+        ix = canvas_size - indicator_size - 4
+        iy = 4
+        
+        draw.rounded_rectangle(
+            [ix, iy, ix + indicator_size, iy + indicator_size],
+            radius=8,
+            fill=(0, 0, 0, 210),
+            outline=(255, 255, 255, 100),
+            width=1,
+        )
 
-        # Draw text & arrow
-        draw.text((val_x, val_y), value_str, fill=COLOR_WHITE, font=font_val)
-        arrow_x = (canvas_size - arrow_w) // 2
-        arrow_y = val_y + val_h + 4
-        draw.text((arrow_x, arrow_y), arrow_char, fill=COLOR_WHITE, font=font_arrow)
-    else:
-        # Centered value
-        val_bbox = draw.textbbox((0, 0), value_str, font=font_val)
-        val_w = val_bbox[2] - val_bbox[0]
-        val_h = val_bbox[3] - val_bbox[1]
-        val_x = (canvas_size - val_w) // 2
-        val_y = (canvas_size - val_h) // 2 - 2
-        draw.text((val_x, val_y), value_str, fill=COLOR_WHITE, font=font_val)
+        ax = ix + (indicator_size - arrow_w) // 2 - arrow_bbox[0]
+        ay = iy + (indicator_size - arrow_h) // 2 - arrow_bbox[1]
+        draw.text((ax, ay), arrow_char, fill=COLOR_WHITE, font=font_arrow)
 
-    # High quality downsampling
+        # Shift text slightly left for balanced look if needed
+        val_x = max(6, (canvas_size - val_w) // 2 - 4)
+
+    # 3. Draw Main Glucose Number with subtle drop shadow for maximum punch
+    shadow_offset = 2
+    draw.text((val_x + shadow_offset, val_y + shadow_offset), value_str, fill=(0, 0, 0, 160), font=font_val)
+    draw.text((val_x, val_y), value_str, fill=COLOR_WHITE, font=font_val)
+
+    # High-quality Lanczos downsampling to native resolution
     img_smooth = img.resize((size, size), Image.Resampling.LANCZOS)
     return img_smooth
 
