@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .config import AppConfig, ConfigManager, GlucoseTargetRanges
+from .config import AppConfig, ConfigManager, GlucoseTargetRanges, get_app_data_dir, get_static_dir
 from .libre_client import LibreClient, GlucoseReading
 from .storage import DatabaseManager
 from .autostart import is_autostart_enabled, set_autostart
@@ -36,7 +36,7 @@ class ConfigUpdateRequest(BaseModel):
     notify_on_low: bool = True
     notify_on_high: bool = True
     sound_alerts: bool = False
-    autostart_with_windows: bool = False
+    autostart_with_windows: bool = True
     setup_completed: bool = True
 
 
@@ -62,7 +62,7 @@ def create_app(
         allow_headers=["*"],
     )
 
-    static_dir = Path(__file__).resolve().parent / "static"
+    static_dir = get_static_dir()
     static_dir.mkdir(parents=True, exist_ok=True)
 
     @app.get("/api/current")
@@ -275,7 +275,7 @@ def create_app(
     @app.get("/api/export/csv")
     async def export_csv() -> Response:
         """Download all readings as CSV file."""
-        export_file = Path(__file__).resolve().parent.parent / "glucose_export.csv"
+        export_file = get_app_data_dir() / "glucose_export.csv"
         db_mgr.export_to_csv(export_file)
         return FileResponse(
             path=str(export_file),

@@ -12,7 +12,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .config import GlucoseTargetRanges
+from .config import GlucoseTargetRanges, get_app_data_dir
 from .libre_client import GlucoseReading, TREND_ARROWS
 
 
@@ -21,8 +21,7 @@ class DatabaseManager:
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         if db_path is None:
-            base_dir = Path(__file__).resolve().parent.parent
-            self.db_path = base_dir / "blood_sugar.db"
+            self.db_path = get_app_data_dir() / "blood_sugar.db"
         else:
             self.db_path = db_path
 

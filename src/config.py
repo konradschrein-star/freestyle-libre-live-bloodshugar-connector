@@ -1,13 +1,43 @@
 """
 FreeStyle Libre Live Blood Sugar Connector - Configuration & Settings Module
 Handles persistent local configuration for credentials, target ranges, units, and preferences.
+Uses %APPDATA%/FreeStyleLibreTaskbar for PowerToys-like native Windows integration.
 """
 
 from __future__ import annotations
 import json
+import os
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Literal, Optional
+
+
+def get_app_data_dir() -> Path:
+    """Get persistent application directory in %APPDATA% or local fallback."""
+    if os.name == "nt":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            path = Path(appdata) / "FreeStyleLibreTaskbar"
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+    base_dir = Path(__file__).resolve().parent.parent
+    return base_dir
+
+
+def get_static_dir() -> Path:
+    """Get static assets directory for dev and PyInstaller frozen runtime."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        # PyInstaller bundle directory
+        bundle_static = Path(sys._MEIPASS) / "src" / "static"
+        if bundle_static.exists():
+            return bundle_static
+        # Alternatively top-level static
+        top_static = Path(sys._MEIPASS) / "static"
+        if top_static.exists():
+            return top_static
+
+    return Path(__file__).resolve().parent / "static"
 
 
 @dataclass
@@ -73,8 +103,8 @@ class AppConfig:
     web_host: str = "127.0.0.1"
     web_port: int = 8765
 
-    # System & Startup
-    autostart_with_windows: bool = False
+    # PowerToys-like Automatic Background Autostart (Enabled by default)
+    autostart_with_windows: bool = True
     setup_completed: bool = False
 
     # Cached Auth Token (for fast resume without re-logging in every startup)
@@ -88,8 +118,7 @@ class ConfigManager:
 
     def __init__(self, config_path: Optional[Path] = None) -> None:
         if config_path is None:
-            base_dir = Path(__file__).resolve().parent.parent
-            self.config_path = base_dir / "config.json"
+            self.config_path = get_app_data_dir() / "config.json"
         else:
             self.config_path = config_path
 
@@ -131,7 +160,7 @@ class ConfigManager:
                 sound_alerts=bool(data.get("sound_alerts", False)),
                 web_host=data.get("web_host", "127.0.0.1"),
                 web_port=int(data.get("web_port", 8765)),
-                autostart_with_windows=bool(data.get("autostart_with_windows", False)),
+                autostart_with_windows=bool(data.get("autostart_with_windows", True)),
                 setup_completed=bool(data.get("setup_completed", False)),
                 cached_token=data.get("cached_token"),
                 cached_token_expiry=data.get("cached_token_expiry"),
