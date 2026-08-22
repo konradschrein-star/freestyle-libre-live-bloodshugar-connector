@@ -1,6 +1,7 @@
 """
 FreeStyle Libre / LibreLinkUp API Client
 Robust, typed client for Abbott LibreLinkUp REST API supporting FreeStyle Libre 3 and Libre 2.
+Features automatic region redirection, minimumVersion header auto-negotiation, and token caching.
 """
 
 from __future__ import annotations
@@ -111,27 +112,21 @@ class LibreClient:
     Connects to the cloud follower API to stream real-time glucose readings.
     """
 
-    DEFAULT_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "product": "llu.android",
-        "version": "4.12.0",
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "cache-control": "no-cache",
-    }
+    DEFAULT_VERSION = "4.16.0"
 
     def __init__(
         self,
         email: str,
         password: str,
-        region: str = "eu",
+        region: str = "de",
         cached_token: Optional[str] = None,
         cached_account_id: Optional[str] = None,
     ) -> None:
         self.email = email.strip()
         self.password = password.strip()
-        self.region = region.lower()
-        self.base_url = REGIONAL_ENDPOINTS.get(self.region, REGIONAL_ENDPOINTS["eu"])
+        self.region = region.lower() if region else "de"
+        self.base_url = REGIONAL_ENDPOINTS.get(self.region, REGIONAL_ENDPOINTS["de"])
+        self.api_version = self.DEFAULT_VERSION
         self.token: Optional[str] = cached_token
         self.account_id: Optional[str] = cached_account_id
         self.patient_id: Optional[str] = None
@@ -139,17 +134,23 @@ class LibreClient:
         self.client = httpx.Client(timeout=15.0)
 
     def _get_headers(self, authenticated: bool = True) -> Dict[str, str]:
-        headers = dict(self.DEFAULT_HEADERS)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "product": "llu.android",
+            "version": self.api_version,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "cache-control": "no-cache",
+        }
         if authenticated and self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         if self.account_id:
-            # Abbott API often checks sha256 of account id or user id header
             account_hash = hashlib.sha256(self.account_id.encode("utf-8")).hexdigest()
             headers["Account-Id"] = account_hash
         return headers
 
-    def authenticate(self) -> LibreAuthResult:
-        """Authenticate user credentials with LibreLinkUp API."""
+    def authenticate(self, retry_count: int = 0) -> LibreAuthResult:
+        """Authenticate user credentials with LibreLinkUp API with auto-region redirect handling."""
         if not self.email or not self.password:
             return LibreAuthResult(success=False, error_message="E-Mail oder Passwort fehlt.")
 
@@ -172,14 +173,20 @@ class LibreClient:
                 
                 # Check for region redirect
                 if data.get("data", {}).get("redirect") is True:
-                    new_region = data.get("data", {}).get("region", "eu").lower()
-                    logger.info(f"Redirecting authentication to region: {new_region}")
-                    if new_region in REGIONAL_ENDPOINTS:
+                    new_region = data.get("data", {}).get("region", "de").lower()
+                    logger.info(f"Abbott requested redirect to region: {new_region}")
+                    if new_region in REGIONAL_ENDPOINTS and retry_count < 3:
                         self.region = new_region
                         self.base_url = REGIONAL_ENDPOINTS[new_region]
-                        return self.authenticate()
+                        return self.authenticate(retry_count=retry_count + 1)
 
-                # Extract auth token and user
+                # Check if minimumVersion update is needed
+                if data.get("status") == 920:
+                    min_ver = data.get("data", {}).get("minimumVersion")
+                    if min_ver and retry_count < 3:
+                        self.api_version = min_ver
+                        return self.authenticate(retry_count=retry_count + 1)
+
                 auth_ticket = data.get("data", {}).get("authTicket", {})
                 user = data.get("data", {}).get("user", {})
                 self.token = auth_ticket.get("token")
@@ -200,9 +207,20 @@ class LibreClient:
                 )
 
             elif response.status_code in (401, 403):
+                # Check if 403 was due to minimumVersion requirement
+                try:
+                    err_json = response.json()
+                    if err_json.get("status") == 920 or "minimumVersion" in err_json.get("data", {}):
+                        min_ver = err_json.get("data", {}).get("minimumVersion", "4.16.0")
+                        if retry_count < 3:
+                            self.api_version = min_ver
+                            return self.authenticate(retry_count=retry_count + 1)
+                except Exception:
+                    pass
+
                 return LibreAuthResult(
                     success=False,
-                    error_message="Ungültige Anmeldedaten (E-Mail oder Passwort falsch). Bitte prüfen.",
+                    error_message="Ungültige Anmeldedaten (E-Mail oder Passwort falsch).",
                 )
             else:
                 return LibreAuthResult(
@@ -233,8 +251,25 @@ class LibreClient:
         url = f"{self.base_url}/llu/connections"
         try:
             response = self.client.get(url, headers=self._get_headers(authenticated=True))
+            
+            # Check for version update requirement
+            if response.status_code == 403:
+                try:
+                    err_json = response.json()
+                    min_ver = err_json.get("data", {}).get("minimumVersion")
+                    if min_ver:
+                        self.api_version = min_ver
+                        self.token = None  # Force re-auth with new version
+                        auth_res = self.authenticate()
+                        if not auth_res.success:
+                            raise RuntimeError(auth_res.error_message)
+                        response = self.client.get(url, headers=self._get_headers(authenticated=True))
+                except Exception:
+                    pass
+
             if response.status_code in (401, 403):
                 # Token expired, re-authenticate and retry once
+                self.token = None
                 auth_res = self.authenticate()
                 if not auth_res.success:
                     raise RuntimeError(auth_res.error_message)
@@ -245,7 +280,7 @@ class LibreClient:
                 connections = data.get("data", [])
                 return connections
             else:
-                raise RuntimeError(f"Fehler beim Abrufen der Verbindungen: {response.status_code}")
+                raise RuntimeError(f"Fehler beim Abrufen der Verbindungen ({response.status_code}): {response.text[:200]}")
         except Exception as e:
             logger.error(f"Error fetching connections: {e}")
             raise
@@ -270,10 +305,12 @@ class LibreClient:
             target_conn = connections[0]
 
         self.patient_id = target_conn.get("patientId", "")
-        self.patient_name = f"{target_conn.get('firstName', '')} {target_conn.get('lastName', '')}".strip() or "Patient"
+        f_name = target_conn.get("firstName", "")
+        l_name = target_conn.get("lastName", "")
+        self.patient_name = f"{f_name} {l_name}".strip() or "Konrad"
 
         # Try to get latest reading from connection object or fetch graph endpoint
-        glucose_data = target_conn.get("glucoseMeasurement", {})
+        glucose_data = target_conn.get("glucoseMeasurement") or target_conn.get("glucoseItem") or {}
         sensor_data = target_conn.get("sensor", {})
 
         # If glucoseMeasurement is empty on connection, fetch graph endpoint
@@ -282,7 +319,11 @@ class LibreClient:
             resp = self.client.get(graph_url, headers=self._get_headers(authenticated=True))
             if resp.status_code == 200:
                 g_json = resp.json().get("data", {})
-                glucose_data = g_json.get("connection", {}).get("glucoseMeasurement", {})
+                glucose_data = (
+                    g_json.get("connection", {}).get("glucoseMeasurement")
+                    or g_json.get("connection", {}).get("glucoseItem")
+                    or {}
+                )
                 if not sensor_data:
                     sensor_data = g_json.get("connection", {}).get("sensor", {})
 
@@ -290,9 +331,9 @@ class LibreClient:
             raise RuntimeError("Keine aktuellen Blutzuckerdaten in der LibreLinkUp-Antwort vorhanden.")
 
         # Extract values
-        val_mgdl = float(glucose_data.get("ValueInMgPerDl", glucose_data.get("Value", 0.0)))
-        # Standard conversion: mg/dL to mmol/L (/ 18.0182)
-        val_mmol = round(val_mgdl / 18.0182, 1)
+        val_mgdl = float(glucose_data.get("ValueInMgPerDl", 0.0))
+        # Direct mmol/L value if provided by Abbott, else convert
+        val_mmol = float(glucose_data.get("Value", round(val_mgdl / 18.0182, 1)))
 
         trend_id = int(glucose_data.get("TrendArrow", 0))
         trend_sym, trend_desc_en, trend_desc_de = TREND_ARROWS.get(
@@ -302,8 +343,6 @@ class LibreClient:
         ts_str = glucose_data.get("Timestamp", "")
         parsed_ts = self._parse_timestamp(ts_str)
 
-        # Parse measurement color
-        # 1: Green, 2: Yellow, 3: Orange, 4: Red
         color_code = int(glucose_data.get("MeasurementColor", 1))
 
         reading = GlucoseReading(
@@ -314,12 +353,12 @@ class LibreClient:
             trend_description_de=trend_desc_de,
             trend_description_en=trend_desc_en,
             timestamp=parsed_ts,
-            is_high=bool(glucose_data.get("IsHigh", False)),
-            is_low=bool(glucose_data.get("IsLow", False)),
+            is_high=bool(glucose_data.get("isHigh", False)),
+            is_low=bool(glucose_data.get("isLow", False)),
             measurement_color=color_code,
             patient_id=self.patient_id,
             patient_name=self.patient_name,
-            sensor_serial=sensor_data.get("sn") or sensor_data.get("serialNumber"),
+            sensor_serial=sensor_data.get("sn") or sensor_data.get("serialNumber") or "FreeStyle Libre 3",
             raw_data=glucose_data,
         )
 
@@ -327,7 +366,6 @@ class LibreClient:
         if sensor_data:
             sn = sensor_data.get("sn") or sensor_data.get("serialNumber") or "FreeStyle Libre 3"
             dev_name = sensor_data.get("device", "FreeStyle Libre 3")
-            # calculate remaining days if available
             sensor_info = SensorInfo(
                 serial_number=sn,
                 device_name=dev_name,
@@ -366,7 +404,6 @@ class LibreClient:
         if not ts_str:
             return datetime.datetime.now()
 
-        # Format examples: "8/22/2026 5:45:00 AM", "2026-08-22T05:45:00", "2026-08-22T05:45:00.000Z"
         formats = [
             "%m/%d/%Y %I:%M:%S %p",
             "%m/%d/%Y %H:%M:%S",
@@ -374,7 +411,7 @@ class LibreClient:
             "%Y-%m-%dT%H:%M:%SZ",
             "%Y-%m-%d %H:%M:%S",
         ]
-        clean_str = ts_str.split(".")[0]  # remove sub-second if present
+        clean_str = ts_str.split(".")[0]
         for fmt in formats:
             try:
                 return datetime.datetime.strptime(clean_str, fmt)
