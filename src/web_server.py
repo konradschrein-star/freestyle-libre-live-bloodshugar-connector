@@ -25,17 +25,19 @@ class ConfigUpdateRequest(BaseModel):
     email: str
     password: Optional[str] = None
     region: str = "eu"
-    unit: str = "mg/dL"
+    unit: str = "mmol/L"
     language: str = "de"
     refresh_interval_seconds: int = 60
-    target_low: float = 70.0
-    target_high: float = 180.0
-    very_low: float = 54.0
-    high: float = 250.0
+    target_low: float = 70.0      # mg/dL
+    target_high: float = 180.0    # mg/dL
+    very_low: float = 54.0        # mg/dL
+    high: float = 250.0           # mg/dL
     enable_notifications: bool = True
     notify_on_low: bool = True
     notify_on_high: bool = True
+    sound_alerts: bool = False
     autostart_with_windows: bool = False
+    setup_completed: bool = True
 
 
 class TestConnectionRequest(BaseModel):
@@ -68,16 +70,18 @@ def create_app(
         """Fetch current blood sugar reading and connection status."""
         latest = db_mgr.get_latest_reading()
         is_conf = config_mgr.is_configured()
+        cfg = config_mgr.config
 
         if not latest:
             return {
                 "status": "configured" if is_conf else "unconfigured",
                 "reading": None,
                 "configured": is_conf,
-                "email": config_mgr.config.email if is_conf else "",
+                "setup_completed": cfg.setup_completed,
+                "email": cfg.email if is_conf else "",
+                "unit": cfg.unit,
             }
 
-        cfg = config_mgr.config
         reading_dict = {
             "value_mgdl": latest.value_mgdl,
             "value_mmol": latest.value_mmol,
@@ -101,7 +105,9 @@ def create_app(
             "status": "active",
             "reading": reading_dict,
             "configured": is_conf,
-            "email": config_mgr.config.email,
+            "setup_completed": cfg.setup_completed,
+            "email": cfg.email,
+            "unit": cfg.unit,
         }
 
     @app.get("/api/history")
@@ -126,10 +132,14 @@ def create_app(
             "hours": hours,
             "unit": cfg.unit,
             "targets": {
-                "target_low": cfg.targets.target_low,
-                "target_high": cfg.targets.target_high,
-                "very_low": cfg.targets.very_low,
-                "high": cfg.targets.high,
+                "target_low_mgdl": cfg.targets.target_low,
+                "target_high_mgdl": cfg.targets.target_high,
+                "very_low_mgdl": cfg.targets.very_low,
+                "high_mgdl": cfg.targets.high,
+                "target_low_mmol": cfg.targets.target_low_mmol,
+                "target_high_mmol": cfg.targets.target_high_mmol,
+                "very_low_mmol": cfg.targets.very_low_mmol,
+                "high_mmol": cfg.targets.high_mmol,
             },
             "points": points,
         }
@@ -158,10 +168,17 @@ def create_app(
                 "target_low": cfg.targets.target_low,
                 "target_high": cfg.targets.target_high,
                 "high": cfg.targets.high,
+                "very_low_mmol": cfg.targets.very_low_mmol,
+                "low_mmol": cfg.targets.target_low_mmol,
+                "target_low_mmol": cfg.targets.target_low_mmol,
+                "target_high_mmol": cfg.targets.target_high_mmol,
+                "high_mmol": cfg.targets.high_mmol,
             },
             "enable_notifications": cfg.enable_notifications,
             "notify_on_low": cfg.notify_on_low,
             "notify_on_high": cfg.notify_on_high,
+            "sound_alerts": cfg.sound_alerts,
+            "setup_completed": cfg.setup_completed,
             "autostart_with_windows": is_autostart_enabled(),
         }
 
@@ -175,7 +192,7 @@ def create_app(
             cfg.cached_token = None  # Clear cache to force fresh login
 
         cfg.region = req.region.lower()
-        cfg.unit = "mmol/L" if req.unit == "mmol/L" else "mg/dL"
+        cfg.unit = "mg/dL" if req.unit == "mg/dL" else "mmol/L"
         cfg.language = "en" if req.language == "en" else "de"
         cfg.refresh_interval_seconds = max(15, req.refresh_interval_seconds)
 
@@ -188,7 +205,9 @@ def create_app(
         cfg.enable_notifications = req.enable_notifications
         cfg.notify_on_low = req.notify_on_low
         cfg.notify_on_high = req.notify_on_high
+        cfg.sound_alerts = req.sound_alerts
         cfg.autostart_with_windows = req.autostart_with_windows
+        cfg.setup_completed = req.setup_completed
 
         # Update Windows Registry for Autostart
         set_autostart(req.autostart_with_windows)
@@ -221,6 +240,9 @@ def create_app(
                 }
 
             reading, sensor = client.get_latest_reading()
+            cfg = config_mgr.config
+            val_display = f"{reading.value_mmol:.1f} mmol/L" if cfg.unit == "mmol/L" else f"{reading.value_mgdl:.0f} mg/dL"
+            
             return {
                 "success": True,
                 "message": "Verbindung zu FreeStyle LibreLinkUp erfolgreich hergestellt!",
@@ -228,6 +250,7 @@ def create_app(
                 "sensor_serial": reading.sensor_serial or "FreeStyle Libre 3",
                 "current_mgdl": reading.value_mgdl,
                 "current_mmol": reading.value_mmol,
+                "current_display": val_display,
                 "trend_symbol": reading.trend_symbol,
             }
         except Exception as e:

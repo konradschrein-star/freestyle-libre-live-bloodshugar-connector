@@ -1,6 +1,6 @@
 """
 FreeStyle Libre Live Blood Sugar Connector - Dynamic Tray Icon Generator
-Renders high-DPI, color-coded taskbar icons with live glucose value and trend arrow.
+Renders high-DPI, color-coded taskbar icons with live glucose value (mmol/L or mg/dL) and trend arrow.
 """
 
 from __future__ import annotations
@@ -10,12 +10,11 @@ import os
 
 
 # High-contrast modern color palette (RGB)
-COLOR_GREEN = (34, 197, 94)      # #22c55e In target (70 - 180 mg/dL)
-COLOR_YELLOW = (234, 179, 8)     # #eab308 Warning / High (180 - 250 mg/dL)
-COLOR_ORANGE = (249, 115, 22)    # #f97316 Low (54 - 70 mg/dL)
-COLOR_RED = (239, 68, 68)        # #ef4444 Critical (<54 or >250 mg/dL)
+COLOR_GREEN = (34, 197, 94)      # #22c55e In target (e.g. 3.9 - 10.0 mmol/L / 70 - 180 mg/dL)
+COLOR_YELLOW = (234, 179, 8)     # #eab308 Warning / High (e.g. 10.0 - 13.9 mmol/L / 180 - 250 mg/dL)
+COLOR_ORANGE = (249, 115, 22)    # #f97316 Low (3.0 - 3.9 mmol/L / 54 - 70 mg/dL)
+COLOR_RED = (239, 68, 68)        # #ef4444 Critical (< 3.0 or > 13.9 mmol/L / < 54 or > 250 mg/dL)
 COLOR_GRAY = (100, 116, 139)     # #64748b Offline / Connecting
-COLOR_DARK_BG = (15, 23, 42)     # #0f172a Deep Slate Background
 COLOR_WHITE = (255, 255, 255)
 COLOR_BLACK = (0, 0, 0)
 
@@ -67,12 +66,8 @@ def create_glucose_icon(
     size: int = 64,
 ) -> Image.Image:
     """
-    Generate a dynamic 64x64 High-DPI icon image for the Windows system tray.
-    
-    Layout:
-    - Rounded rectangle badge with antialiased borders.
-    - Large bold glucose number (e.g. "118" or "6.5").
-    - Directional arrow ("↑", "↗", "→", "↘", "↓") badge.
+    Generate a dynamic High-DPI icon image for the Windows system tray.
+    Supports both mmol/L (e.g. "6.4", "11.2") and mg/dL (e.g. "115").
     """
     # Supersampling 2x (128x128) then downscaling to 64x64 for crystal clear edges
     canvas_size = size * 2
@@ -88,19 +83,6 @@ def create_glucose_icon(
         fill=bg_color,
     )
 
-    # Prepare typography
-    # Number font size depends on string length (e.g. "95" vs "180" vs "6.5")
-    val_len = len(value_str)
-    if val_len <= 2:
-        val_font_size = 54
-    elif val_len == 3:
-        val_font_size = 46
-    else:
-        val_font_size = 38
-
-    font_val = _find_system_font(val_font_size)
-    font_arrow = _find_system_font(42)
-
     # Arrow symbols mapping for clean rendering
     arrow_char = trend_symbol.strip()
     if arrow_char == "↓↓":
@@ -108,9 +90,24 @@ def create_glucose_icon(
     elif arrow_char == "↑↑":
         arrow_char = "⇈"
 
-    if arrow_char and arrow_char != "—":
-        # Draw number in top/middle and arrow at bottom right or next to it
-        # Compute bounding boxes
+    val_len = len(value_str)
+    has_arrow = bool(arrow_char and arrow_char != "—")
+
+    # Typography sizing optimized for mmol/L and mg/dL
+    if val_len <= 2:
+        val_font_size = 54 if has_arrow else 60
+    elif val_len == 3:  # e.g. "6.4" or "115"
+        val_font_size = 46 if has_arrow else 52
+    elif val_len == 4:  # e.g. "11.2"
+        val_font_size = 36 if has_arrow else 42
+    else:
+        val_font_size = 32
+
+    font_val = _find_system_font(val_font_size)
+    font_arrow = _find_system_font(38)
+
+    if has_arrow:
+        # Draw number in upper region and arrow in bottom region
         val_bbox = draw.textbbox((0, 0), value_str, font=font_val)
         val_w = val_bbox[2] - val_bbox[0]
         val_h = val_bbox[3] - val_bbox[1]
@@ -119,19 +116,16 @@ def create_glucose_icon(
         arrow_w = arrow_bbox[2] - arrow_bbox[0]
         arrow_h = arrow_bbox[3] - arrow_bbox[1]
 
-        # Stack or layout horizontally
         val_x = (canvas_size - val_w) // 2
         val_y = (canvas_size - val_h - arrow_h) // 2 + 2
 
-        # Draw glucose text
+        # Draw text & arrow
         draw.text((val_x, val_y), value_str, fill=COLOR_WHITE, font=font_val)
-
-        # Draw arrow below centered
         arrow_x = (canvas_size - arrow_w) // 2
         arrow_y = val_y + val_h + 4
         draw.text((arrow_x, arrow_y), arrow_char, fill=COLOR_WHITE, font=font_arrow)
     else:
-        # Just center the value
+        # Centered value
         val_bbox = draw.textbbox((0, 0), value_str, font=font_val)
         val_w = val_bbox[2] - val_bbox[0]
         val_h = val_bbox[3] - val_bbox[1]

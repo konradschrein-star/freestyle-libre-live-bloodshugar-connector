@@ -5,7 +5,6 @@ Handles persistent local configuration for credentials, target ranges, units, an
 
 from __future__ import annotations
 import json
-import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Literal, Optional
@@ -13,12 +12,37 @@ from typing import Literal, Optional
 
 @dataclass
 class GlucoseTargetRanges:
-    """Glucose target thresholds in mg/dL."""
-    very_low: float = 54.0   # Critical low threshold (<54 mg/dL -> Urgent Red)
-    low: float = 70.0        # Low threshold (54-70 mg/dL -> Warning Yellow)
-    target_low: float = 70.0 # Target lower bound (70-180 mg/dL -> Normal Green)
-    target_high: float = 180.0 # Target upper bound
-    high: float = 250.0      # High threshold (180-250 mg/dL -> Warning Yellow, >250 -> Urgent Red)
+    """Glucose target thresholds stored in mg/dL (with mmol/L helpers)."""
+    very_low: float = 54.0     # Critical low threshold (< 3.0 mmol/L / < 54 mg/dL)
+    low: float = 70.0          # Low threshold (3.9 mmol/L / 70 mg/dL)
+    target_low: float = 70.0   # Target lower bound (3.9 mmol/L / 70 mg/dL)
+    target_high: float = 180.0 # Target upper bound (10.0 mmol/L / 180 mg/dL)
+    high: float = 250.0        # High threshold (13.9 mmol/L / 250 mg/dL)
+
+    # Conversion helper factor: 1 mmol/L = 18.0182 mg/dL
+    @staticmethod
+    def mgdl_to_mmol(val: float) -> float:
+        return round(val / 18.0182, 1)
+
+    @staticmethod
+    def mmol_to_mgdl(val: float) -> float:
+        return round(val * 18.0182, 1)
+
+    @property
+    def target_low_mmol(self) -> float:
+        return self.mgdl_to_mmol(self.target_low)
+
+    @property
+    def target_high_mmol(self) -> float:
+        return self.mgdl_to_mmol(self.target_high)
+
+    @property
+    def very_low_mmol(self) -> float:
+        return self.mgdl_to_mmol(self.very_low)
+
+    @property
+    def high_mmol(self) -> float:
+        return self.mgdl_to_mmol(self.high)
 
 
 @dataclass
@@ -27,14 +51,14 @@ class AppConfig:
     # LibreLinkUp Credentials
     email: str = ""
     password: str = ""
-    region: str = "eu"  # "eu", "de", "eu2", "us", "ap", "auto"
+    region: str = "eu"  # "eu", "de", "eu2", "us", "ap", "ca"
     patient_id: Optional[str] = None
     patient_name: Optional[str] = None
 
-    # Display Preferences
-    unit: Literal["mg/dL", "mmol/L"] = "mg/dL"
+    # Display Preferences - Default to mmol/L as requested
+    unit: Literal["mmol/L", "mg/dL"] = "mmol/L"
     language: Literal["de", "en"] = "de"
-    refresh_interval_seconds: int = 60  # Check every 60 seconds (Libre 3 streams every 1-5 mins)
+    refresh_interval_seconds: int = 60  # Default 60 seconds
     
     # Target Ranges
     targets: GlucoseTargetRanges = field(default_factory=GlucoseTargetRanges)
@@ -51,6 +75,7 @@ class AppConfig:
 
     # System & Startup
     autostart_with_windows: bool = False
+    setup_completed: bool = False
 
     # Cached Auth Token (for fast resume without re-logging in every startup)
     cached_token: Optional[str] = None
@@ -63,7 +88,6 @@ class ConfigManager:
 
     def __init__(self, config_path: Optional[Path] = None) -> None:
         if config_path is None:
-            # Default to config.json in the application root directory
             base_dir = Path(__file__).resolve().parent.parent
             self.config_path = base_dir / "config.json"
         else:
@@ -97,7 +121,7 @@ class ConfigManager:
                 region=data.get("region", "eu"),
                 patient_id=data.get("patient_id"),
                 patient_name=data.get("patient_name"),
-                unit=data.get("unit", "mg/dL"),
+                unit=data.get("unit", "mmol/L"),
                 language=data.get("language", "de"),
                 refresh_interval_seconds=int(data.get("refresh_interval_seconds", 60)),
                 targets=targets,
@@ -108,6 +132,7 @@ class ConfigManager:
                 web_host=data.get("web_host", "127.0.0.1"),
                 web_port=int(data.get("web_port", 8765)),
                 autostart_with_windows=bool(data.get("autostart_with_windows", False)),
+                setup_completed=bool(data.get("setup_completed", False)),
                 cached_token=data.get("cached_token"),
                 cached_token_expiry=data.get("cached_token_expiry"),
                 cached_account_id=data.get("cached_account_id"),
@@ -131,5 +156,5 @@ class ConfigManager:
             print(f"[ConfigManager] Error saving config to {self.config_path}: {e}")
 
     def is_configured(self) -> bool:
-        """Check if user has provided LibreLinkUp credentials."""
+        """Check if user has completed setup and provided LibreLinkUp credentials."""
         return bool(self.config.email.strip() and self.config.password.strip())

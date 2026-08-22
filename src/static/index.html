@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FreeStyle Libre - Live Blood Sugar & Taskbar Monitor</title>
+  <title>FreeStyle Libre - Live Taskbar Blood Sugar Monitor</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
@@ -60,7 +60,7 @@
 </head>
 <body class="bg-dark-900 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
 
-  <!-- Navigation Bar -->
+  <!-- Header / Navigation -->
   <header class="border-b border-dark-700/80 bg-dark-800/80 backdrop-blur sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
@@ -75,16 +75,17 @@
         </div>
       </div>
 
-      <div class="flex items-center space-x-3">
-        <!-- Live Pulse Indicator -->
+      <div class="flex items-center space-x-2.5">
+        <!-- Live Status Indicator -->
         <div id="live-indicator" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-dark-700 border border-dark-600 text-xs text-slate-300">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span id="sync-status-text">Verbunden</span>
         </div>
 
-        <!-- Language Toggle -->
-        <button id="lang-btn" onclick="toggleLanguage()" class="px-3 py-1.5 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-xs font-semibold transition">
-          DE / EN
+        <!-- Setup Wizard Button -->
+        <button onclick="openWizard(1)" title="Einrichtungs-Assistent starten" class="px-3 py-1.5 rounded-lg bg-dark-700 hover:bg-dark-600 border border-dark-600 text-xs font-semibold text-slate-300 hover:text-white transition flex items-center space-x-1.5">
+          <span>🧙‍♂️</span>
+          <span id="nav-wizard-btn">Setup-Assistent</span>
         </button>
 
         <!-- Refresh Button -->
@@ -95,28 +96,28 @@
         <!-- Settings Button -->
         <button onclick="openSettingsModal()" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md shadow-emerald-600/30">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          <span id="nav-settings-text">Konto & Einstellungen</span>
+          <span id="nav-settings-text">Einstellungen</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
+  <!-- Main Content Dashboard -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6">
 
-    <!-- Top Banner: Unconfigured Notice (shown if credentials missing) -->
-    <div id="unconfigured-banner" class="hidden p-5 rounded-2xl bg-gradient-to-r from-amber-900/40 via-amber-800/30 to-amber-900/40 border border-amber-500/40 flex flex-col md:flex-row items-center justify-between gap-4">
+    <!-- Top Banner: First Run or Missing Credentials -->
+    <div id="unconfigured-banner" class="hidden p-5 rounded-2xl bg-gradient-to-r from-emerald-900/40 via-teal-900/30 to-emerald-900/40 border border-emerald-500/40 flex flex-col md:flex-row items-center justify-between gap-4">
       <div class="flex items-center space-x-4">
-        <div class="text-3xl">⚠️</div>
+        <div class="text-3xl">✨</div>
         <div>
-          <h3 class="font-bold text-amber-200 text-base" id="banner-title">FreeStyle Libre Konto noch nicht verbunden</h3>
-          <p class="text-xs text-amber-300/80 mt-0.5" id="banner-desc">
-            Bitte tragen Sie Ihre LibreLinkUp Zugangsdaten ein, um den Live-Blutzucker in Ihrer Windows-Taskleiste anzuzeigen.
+          <h3 class="font-bold text-emerald-200 text-base" id="banner-title">Willkommen! Bitte Setup-Assistent starten</h3>
+          <p class="text-xs text-emerald-300/80 mt-0.5" id="banner-desc">
+            Verbinden Sie Ihr FreeStyle Libre 3 Konto in wenigen Schritten, um den Blutzucker live in der Windows-Taskleiste zu sehen.
           </p>
         </div>
       </div>
-      <button onclick="openSettingsModal()" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition shrink-0">
-        Jetzt verbinden →
+      <button onclick="openWizard(1)" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition shrink-0 shadow-lg shadow-emerald-500/20">
+        Setup-Assistent öffnen →
       </button>
     </div>
 
@@ -142,7 +143,7 @@
             </span>
             <div class="flex flex-col items-start justify-center">
               <span id="hero-arrow" class="text-4xl text-emerald-400 font-bold drop-shadow">→</span>
-              <span id="hero-unit" class="text-sm font-bold text-slate-400 -mt-1">mg/dL</span>
+              <span id="hero-unit" class="text-sm font-bold text-slate-400 -mt-1">mmol/L</span>
             </div>
           </div>
           <p id="hero-trend-desc" class="text-sm font-semibold text-slate-300 mt-2">
@@ -153,7 +154,7 @@
         <div class="border-t border-dark-700/80 pt-4 flex items-center justify-between text-xs text-slate-400 z-10">
           <div class="flex items-center space-x-1.5">
             <span>👤</span>
-            <span id="hero-patient" class="font-medium text-slate-300">Konrad</span>
+            <span id="hero-patient" class="font-medium text-slate-300">Patient</span>
           </div>
           <div class="flex items-center space-x-1.5">
             <span>📡</span>
@@ -161,7 +162,7 @@
           </div>
         </div>
 
-        <!-- Background Ambient Glow -->
+        <!-- Ambient Glow -->
         <div id="hero-glow-bg" class="absolute -right-12 -bottom-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
@@ -170,7 +171,7 @@
         <div class="flex items-center justify-between mb-4">
           <div>
             <h2 class="font-bold text-base text-white tracking-tight" id="tir-card-title">Time in Range (24 Stunden)</h2>
-            <p class="text-xs text-slate-400" id="tir-card-subtitle">Klinischer Standardzielbereich: > 70% im Normalbereich (70–180 mg/dL)</p>
+            <p class="text-xs text-slate-400" id="tir-card-subtitle">Klinischer Zielbereich: &gt; 70% im Normalbereich</p>
           </div>
           <span class="text-xs px-2.5 py-1 rounded-md bg-dark-700 font-mono text-emerald-400 border border-dark-600 font-bold" id="tir-badge">
             TIR: --%
@@ -188,39 +189,39 @@
           </div>
 
           <!-- Percentage Legend Breakdown -->
-          <div class="space-y-2.5 text-xs">
+          <div class="space-y-2 text-xs">
             <div class="flex items-center justify-between p-2 rounded-xl bg-dark-700/50 border border-dark-600/50">
               <div class="flex items-center space-x-2">
                 <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                <span class="text-slate-300" id="lbl-very-high">Sehr hoch (&gt; 250 mg/dL)</span>
+                <span class="text-slate-300" id="lbl-very-high">Sehr hoch (&gt; 13.9 mmol/L)</span>
               </div>
               <span id="val-very-high" class="font-bold font-mono text-red-400">0%</span>
             </div>
             <div class="flex items-center justify-between p-2 rounded-xl bg-dark-700/50 border border-dark-600/50">
               <div class="flex items-center space-x-2">
                 <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
-                <span class="text-slate-300" id="lbl-high">Erhöht (181–250 mg/dL)</span>
+                <span class="text-slate-300" id="lbl-high">Erhöht (10.0–13.9 mmol/L)</span>
               </div>
               <span id="val-high" class="font-bold font-mono text-yellow-300">0%</span>
             </div>
             <div class="flex items-center justify-between p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
               <div class="flex items-center space-x-2">
                 <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
-                <span class="text-emerald-200 font-semibold" id="lbl-in-target">Im Zielbereich (70–180 mg/dL)</span>
+                <span class="text-emerald-200 font-semibold" id="lbl-in-target">Im Zielbereich (3.9–10.0 mmol/L)</span>
               </div>
               <span id="val-in-target" class="font-bold font-mono text-emerald-300 text-sm">--%</span>
             </div>
             <div class="flex items-center justify-between p-2 rounded-xl bg-dark-700/50 border border-dark-600/50">
               <div class="flex items-center space-x-2">
                 <span class="w-3 h-3 rounded-full bg-orange-500"></span>
-                <span class="text-slate-300" id="lbl-low">Niedrig (54–69 mg/dL)</span>
+                <span class="text-slate-300" id="lbl-low">Niedrig (3.0–3.9 mmol/L)</span>
               </div>
               <span id="val-low" class="font-bold font-mono text-orange-400">0%</span>
             </div>
             <div class="flex items-center justify-between p-2 rounded-xl bg-dark-700/50 border border-dark-600/50">
               <div class="flex items-center space-x-2">
                 <span class="w-3 h-3 rounded-full bg-red-600"></span>
-                <span class="text-slate-300" id="lbl-very-low">Sehr niedrig (&lt; 54 mg/dL)</span>
+                <span class="text-slate-300" id="lbl-very-low">Sehr niedrig (&lt; 3.0 mmol/L)</span>
               </div>
               <span id="val-very-low" class="font-bold font-mono text-red-500">0%</span>
             </div>
@@ -235,9 +236,9 @@
         <span class="text-xs text-slate-400 font-medium" id="stat-lbl-avg">Ø Durchschnitt (24h)</span>
         <div class="mt-2 flex items-baseline space-x-1.5">
           <span id="stat-avg" class="text-2xl font-black text-white font-mono">--</span>
-          <span class="text-xs text-slate-400 font-semibold" id="stat-avg-unit">mg/dL</span>
+          <span class="text-xs text-slate-400 font-semibold" id="stat-avg-unit">mmol/L</span>
         </div>
-        <span class="text-[11px] text-slate-500 mt-1" id="stat-lbl-avg-sub">Optimal: 90 - 130</span>
+        <span class="text-[11px] text-slate-500 mt-1" id="stat-lbl-avg-sub">Optimal: 5.0 - 7.2 mmol/L</span>
       </div>
 
       <div class="p-5 rounded-2xl bg-dark-800 border border-dark-700 flex flex-col justify-between">
@@ -253,7 +254,7 @@
         <span class="text-xs text-slate-400 font-medium" id="stat-lbl-sd">Standardabweichung (SD)</span>
         <div class="mt-2 flex items-baseline space-x-1.5">
           <span id="stat-sd" class="text-2xl font-black text-white font-mono">--</span>
-          <span class="text-xs text-slate-400 font-semibold">mg/dL</span>
+          <span class="text-xs text-slate-400 font-semibold" id="stat-sd-unit">mmol/L</span>
         </div>
         <span class="text-[11px] text-slate-500 mt-1" id="stat-lbl-sd-sub">Stabilität der Kurve</span>
       </div>
@@ -291,15 +292,15 @@
         <div class="flex items-center space-x-4">
           <span class="flex items-center space-x-1.5">
             <span class="w-3 h-1.5 rounded-full bg-emerald-400"></span>
-            <span id="legend-target">Zielbereich (70–180 mg/dL)</span>
+            <span id="legend-target">Zielbereich (3.9–10.0 mmol/L)</span>
           </span>
           <span class="flex items-center space-x-1.5">
             <span class="w-3 h-1.5 rounded-full bg-yellow-400"></span>
-            <span id="legend-high">Erhöht (&gt; 180)</span>
+            <span id="legend-high">Erhöht (&gt; 10.0)</span>
           </span>
           <span class="flex items-center space-x-1.5">
             <span class="w-3 h-1.5 rounded-full bg-red-400"></span>
-            <span id="legend-low">Niedrig (&lt; 70)</span>
+            <span id="legend-low">Niedrig (&lt; 3.9)</span>
           </span>
         </div>
 
@@ -333,7 +334,183 @@
 
   </main>
 
-  <!-- Settings & In-App Libre Connection Modal -->
+  <!-- ======================================================== -->
+  <!-- 🧙‍♂️ 4-STEP LIGHTWEIGHT SETUP WIZARD MODAL -->
+  <!-- ======================================================== -->
+  <div id="wizard-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-dark-800 border border-dark-700 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
+      
+      <!-- Stepper Header -->
+      <div class="flex items-center justify-between border-b border-dark-700 pb-4">
+        <div class="flex items-center space-x-3">
+          <span class="text-2xl">🩸</span>
+          <div>
+            <h3 class="font-bold text-white text-lg">FreeStyle Libre Setup-Assistent</h3>
+            <p class="text-xs text-slate-400" id="wizard-step-label">Schritt 1 von 4: Grundeinstellungen</p>
+          </div>
+        </div>
+        <button onclick="closeWizard()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Step Progress Bar -->
+      <div class="w-full bg-dark-700 h-1.5 rounded-full overflow-hidden">
+        <div id="wizard-progress-bar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 25%;"></div>
+      </div>
+
+      <!-- STEP 1: Language & Unit (mmol/L Default) -->
+      <div id="wizard-step-1" class="space-y-4">
+        <h4 class="font-bold text-white text-sm">1. Sprache und Maßeinheit auswählen</h4>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Unit Selector (mmol/l prominent) -->
+          <div class="space-y-1.5 col-span-2 sm:col-span-1">
+            <label class="block font-semibold text-slate-300 text-xs">Blutzucker-Einheit</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" onclick="setWizardUnit('mmol/L')" id="w-unit-mmol" class="py-3 px-2 rounded-xl border-2 border-emerald-500 bg-emerald-950/40 text-white font-bold text-xs flex flex-col items-center transition">
+                <span class="text-sm">mmol/L</span>
+                <span class="text-[10px] text-emerald-300 font-normal">Standard</span>
+              </button>
+              <button type="button" onclick="setWizardUnit('mg/dL')" id="w-unit-mgdl" class="py-3 px-2 rounded-xl border border-dark-600 bg-dark-900 text-slate-300 font-semibold text-xs flex flex-col items-center hover:border-slate-500 transition">
+                <span class="text-sm">mg/dL</span>
+                <span class="text-[10px] text-slate-400 font-normal">Deutschland</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Language Selector -->
+          <div class="space-y-1.5 col-span-2 sm:col-span-1">
+            <label class="block font-semibold text-slate-300 text-xs">Sprache / Language</label>
+            <select id="w-input-lang" class="w-full px-3.5 py-3 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs outline-none">
+              <option value="de" selected>Deutsch (DE)</option>
+              <option value="en">English (EN)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-dark-700/40 border border-dark-600/50 text-xs text-slate-300 leading-relaxed">
+          💡 <strong>Hinweis</strong>: Sie können die Einheit und alle Zielwerte jederzeit nachträglich in den Einstellungen anpassen.
+        </div>
+
+        <div class="flex justify-end pt-4">
+          <button onclick="goToWizardStep(2)" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30">
+            Weiter zu Schritt 2 →
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: LibreLinkUp Credentials & Live Test -->
+      <div id="wizard-step-2" class="space-y-4 hidden">
+        <h4 class="font-bold text-white text-sm">2. FreeStyle LibreLinkUp Konto verbinden</h4>
+        
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">LibreLinkUp E-Mail</label>
+            <input type="email" id="w-input-email" required placeholder="name@beispiel.de" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">LibreLinkUp Passwort</label>
+            <input type="password" id="w-input-password" placeholder="••••••••••••" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Server-Region</label>
+            <select id="w-input-region" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs outline-none">
+              <option value="eu" selected>Europa / Deutschland (api-eu.libreview.io)</option>
+              <option value="de">Deutschland (api-de.libreview.io)</option>
+              <option value="eu2">Europa 2 (api-eu2.libreview.io)</option>
+              <option value="us">USA (api-us.libreview.io)</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" onclick="testWizardConnection()" id="btn-w-test" class="w-full py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition flex items-center justify-center space-x-2">
+          <span>📡</span>
+          <span>Verbindung jetzt live testen</span>
+        </button>
+        <div id="w-test-result" class="hidden p-3 rounded-xl text-xs"></div>
+
+        <div class="flex justify-between pt-4 border-t border-dark-700">
+          <button onclick="goToWizardStep(1)" class="px-4 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-slate-300 text-xs font-semibold">
+            ← Zurück
+          </button>
+          <button onclick="goToWizardStep(3)" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30">
+            Weiter zu Schritt 3 →
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Targets & Thresholds Configuration -->
+      <div id="wizard-step-3" class="space-y-4 hidden">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-white text-sm">3. Individuelle Zielwerte & Alarmgrenzen</h4>
+          <span id="w-target-unit-badge" class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px] font-mono border border-emerald-500/40">Einheit: mmol/L</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="space-y-1">
+            <label class="block text-slate-400 text-[11px]">Zielbereich Min (<span class="unit-text">mmol/L</span>)</label>
+            <input type="number" step="0.1" id="w-input-tlow" value="3.9" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-slate-400 text-[11px]">Zielbereich Max (<span class="unit-text">mmol/L</span>)</label>
+            <input type="number" step="0.1" id="w-input-thigh" value="10.0" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-slate-400 text-[11px]">Unterzucker Alarm (<span class="unit-text">mmol/L</span>)</label>
+            <input type="number" step="0.1" id="w-input-vlow" value="3.0" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs">
+          </div>
+          <div class="space-y-1">
+            <label class="block text-slate-400 text-[11px]">Überzucker Alarm (<span class="unit-text">mmol/L</span>)</label>
+            <input type="number" step="0.1" id="w-input-high" value="13.9" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white text-xs">
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-dark-700 text-xs">
+          <label class="flex items-center space-x-2.5 cursor-pointer">
+            <input type="checkbox" id="w-input-autostart" class="w-4 h-4 rounded text-emerald-500 bg-dark-900 border-dark-600">
+            <span class="text-slate-300">Beim Windows-Start automatisch im Hintergrund ausführen</span>
+          </label>
+          <label class="flex items-center space-x-2.5 cursor-pointer">
+            <input type="checkbox" id="w-input-notify" class="w-4 h-4 rounded text-emerald-500 bg-dark-900 border-dark-600" checked>
+            <span class="text-slate-300">Windows-Benachrichtigung bei Unter-/Überzucker</span>
+          </label>
+        </div>
+
+        <div class="flex justify-between pt-4 border-t border-dark-700">
+          <button onclick="goToWizardStep(2)" class="px-4 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-slate-300 text-xs font-semibold">
+            ← Zurück
+          </button>
+          <button onclick="submitWizard()" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30">
+            Einrichtung abschließen & Starten 🚀
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Success Screen -->
+      <div id="wizard-step-4" class="space-y-5 text-center py-4 hidden">
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 text-3xl flex items-center justify-center mx-auto border border-emerald-500/40">
+          ✓
+        </div>
+        <div>
+          <h4 class="font-bold text-white text-lg">Erfolgreich eingerichtet!</h4>
+          <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+            Ihr FreeStyle Libre Monitor ist jetzt aktiv. Das Taskleisten-Symbol neben Ihrer Windows-Uhr aktualisiert sich automatisch im Hintergrund.
+          </p>
+        </div>
+        <div class="pt-3">
+          <button onclick="closeWizard()" class="px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition">
+            Dashboard & Monitor öffnen →
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- ⚙️ SETTINGS MODAL -->
+  <!-- ======================================================== -->
   <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-dark-800 border border-dark-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 custom-scrollbar max-h-[90vh] overflow-y-auto">
       
@@ -342,7 +519,7 @@
           <span class="text-xl">⚙️</span>
           <div>
             <h3 class="font-bold text-white text-base" id="modal-title">LibreLinkUp Verbindung & Einstellungen</h3>
-            <p class="text-xs text-slate-400" id="modal-subtitle">Direkt in der App verbinden</p>
+            <p class="text-xs text-slate-400" id="modal-subtitle">Individuelle Konfiguration & Schwellenwerte</p>
           </div>
         </div>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
@@ -352,96 +529,102 @@
 
       <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-4 text-xs">
 
+        <!-- Unit Preference -->
+        <div class="space-y-1.5">
+          <label class="block font-semibold text-slate-300">Blutzucker-Einheit</label>
+          <select id="input-unit" onchange="onUnitChange(this.value)" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-white outline-none text-xs">
+            <option value="mmol/L">mmol/L (Standard)</option>
+            <option value="mg/dL">mg/dL</option>
+          </select>
+        </div>
+
         <!-- LibreLinkUp Email -->
         <div class="space-y-1.5">
-          <label class="block font-semibold text-slate-300" id="lbl-form-email">LibreLinkUp E-Mail-Adresse</label>
-          <input type="email" id="input-email" required placeholder="name@beispiel.de" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white placeholder-slate-500 outline-none text-xs">
-          <p class="text-[11px] text-slate-400" id="lbl-form-email-sub">Die E-Mail Ihres LibreLinkUp Follower-Kontos.</p>
+          <label class="block font-semibold text-slate-300">LibreLinkUp E-Mail-Adresse</label>
+          <input type="email" id="input-email" required placeholder="name@beispiel.de" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 focus:border-emerald-500 text-white text-xs outline-none">
         </div>
 
         <!-- LibreLinkUp Password -->
         <div class="space-y-1.5">
-          <label class="block font-semibold text-slate-300" id="lbl-form-password">LibreLinkUp Passwort</label>
-          <input type="password" id="input-password" placeholder="••••••••••••" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white placeholder-slate-500 outline-none text-xs">
-          <p class="text-[11px] text-slate-400" id="lbl-form-pwd-sub">Wird sicher ausschließlich lokal in config.json gespeichert.</p>
+          <label class="block font-semibold text-slate-300">LibreLinkUp Passwort</label>
+          <input type="password" id="input-password" placeholder="••••••••••••" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 focus:border-emerald-500 text-white text-xs outline-none">
+          <p class="text-[11px] text-slate-400">Nur eingeben, wenn Sie das Passwort ändern möchten.</p>
         </div>
 
         <!-- Region Server Selection -->
         <div class="space-y-1.5">
-          <label class="block font-semibold text-slate-300" id="lbl-form-region">Server-Region</label>
-          <select id="input-region" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 focus:border-emerald-500 text-white outline-none text-xs">
+          <label class="block font-semibold text-slate-300">Server-Region</label>
+          <select id="input-region" class="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-white outline-none text-xs">
             <option value="eu">Europa / Deutschland (api-eu.libreview.io)</option>
             <option value="de">Deutschland Dediziert (api-de.libreview.io)</option>
             <option value="eu2">Europa 2 (api-eu2.libreview.io)</option>
             <option value="us">USA (api-us.libreview.io)</option>
-            <option value="ap">Asien-Pazifik (api-ap.libreview.io)</option>
-            <option value="ca">Kanada (api-ca.libreview.io)</option>
           </select>
         </div>
 
         <!-- Test Connection Live Button -->
         <div class="pt-1">
-          <button type="button" onclick="testConnectionLive()" id="btn-test-conn" class="w-full py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 border border-emerald-500/40 text-emerald-300 font-bold transition flex items-center justify-center space-x-2">
+          <button type="button" onclick="testSettingsConnectionLive()" id="btn-test-conn" class="w-full py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 border border-emerald-500/40 text-emerald-300 font-bold transition flex items-center justify-center space-x-2">
             <span>📡</span>
-            <span id="btn-test-text">Verbindung jetzt live testen</span>
+            <span>Verbindung jetzt live testen</span>
           </button>
           <div id="test-result-box" class="hidden mt-2 p-3 rounded-xl text-xs"></div>
         </div>
 
-        <div class="border-t border-dark-700 pt-3 grid grid-cols-2 gap-3">
-          <!-- Unit Preference -->
-          <div class="space-y-1">
-            <label class="block font-semibold text-slate-300" id="lbl-form-unit">Einheit</label>
-            <select id="input-unit" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white outline-none text-xs">
-              <option value="mg/dL">mg/dL (Standard DE)</option>
-              <option value="mmol/L">mmol/L</option>
-            </select>
+        <!-- Target Range Thresholds -->
+        <div class="space-y-2 pt-2 border-t border-dark-700">
+          <div class="flex items-center justify-between">
+            <label class="block font-semibold text-slate-300">Zielbereich-Schwellenwerte</label>
+            <span id="settings-unit-hint" class="text-[11px] text-emerald-400 font-mono">in mmol/L</span>
           </div>
-
-          <!-- Refresh Interval -->
-          <div class="space-y-1">
-            <label class="block font-semibold text-slate-300" id="lbl-form-interval">Intervall</label>
-            <select id="input-interval" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white outline-none text-xs">
-              <option value="60">Jede 1 Minute (Empfohlen)</option>
-              <option value="120">Alle 2 Minuten</option>
-              <option value="300">Alle 5 Minuten</option>
-            </select>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="text-[10px] text-slate-400">Ziel Minimum:</span>
+              <input type="number" step="0.1" id="input-t-low" class="w-full px-2.5 py-1.5 rounded-lg bg-dark-900 border border-dark-600 text-white text-xs">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400">Ziel Maximum:</span>
+              <input type="number" step="0.1" id="input-t-high" class="w-full px-2.5 py-1.5 rounded-lg bg-dark-900 border border-dark-600 text-white text-xs">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400">Unterzucker Alarm (&lt;):</span>
+              <input type="number" step="0.1" id="input-v-low" class="w-full px-2.5 py-1.5 rounded-lg bg-dark-900 border border-dark-600 text-white text-xs">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400">Überzucker Alarm (&gt;):</span>
+              <input type="number" step="0.1" id="input-high" class="w-full px-2.5 py-1.5 rounded-lg bg-dark-900 border border-dark-600 text-white text-xs">
+            </div>
           </div>
         </div>
 
-        <!-- Target Range Thresholds -->
-        <div class="space-y-2 pt-2 border-t border-dark-700">
-          <label class="block font-semibold text-slate-300" id="lbl-form-targets">Zielbereich-Schwellenwerte (mg/dL)</label>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <span class="text-[10px] text-slate-400" id="lbl-t-low">Ziel Minimum:</span>
-              <input type="number" id="input-t-low" value="70" class="w-full px-2.5 py-1.5 rounded-lg bg-dark-900 border border-dark-600 text-white text-xs">
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-400" id="lbl-t-high">Ziel Maximum:</span>
-              <input type="number" id="input-t-high" value="180" class="w-full px-2.5 py-1.5 rounded-lg bg-dark-900 border border-dark-600 text-white text-xs">
-            </div>
-          </div>
+        <!-- Refresh Interval -->
+        <div class="space-y-1 pt-2 border-t border-dark-700">
+          <label class="block font-semibold text-slate-300">Aktualisierungsintervall</label>
+          <select id="input-interval" class="w-full px-3 py-2 rounded-xl bg-dark-900 border border-dark-600 text-white outline-none text-xs">
+            <option value="60">Jede 1 Minute (Empfohlen)</option>
+            <option value="120">Alle 2 Minuten</option>
+            <option value="300">Alle 5 Minuten</option>
+          </select>
         </div>
 
         <!-- Windows Autostart & Notifications Checkboxes -->
         <div class="space-y-2 pt-2 border-t border-dark-700">
           <label class="flex items-center space-x-2.5 cursor-pointer">
             <input type="checkbox" id="input-autostart" class="w-4 h-4 rounded text-emerald-500 bg-dark-900 border-dark-600 focus:ring-emerald-500">
-            <span class="text-slate-300 font-medium" id="lbl-form-autostart">Automatisch beim Windows-Start ausführen (Autostart)</span>
+            <span class="text-slate-300 font-medium">Automatisch beim Windows-Start ausführen (Autostart)</span>
           </label>
           <label class="flex items-center space-x-2.5 cursor-pointer">
             <input type="checkbox" id="input-notifications" class="w-4 h-4 rounded text-emerald-500 bg-dark-900 border-dark-600 focus:ring-emerald-500" checked>
-            <span class="text-slate-300 font-medium" id="lbl-form-notifications">Benachrichtigungen bei kritischen Werten anzeigen</span>
+            <span class="text-slate-300 font-medium">Benachrichtigungen bei kritischen Werten anzeigen</span>
           </label>
         </div>
 
         <!-- Submit Buttons -->
         <div class="flex items-center justify-end space-x-3 pt-4 border-t border-dark-700">
-          <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-slate-300 font-semibold text-xs transition" id="btn-modal-cancel">
+          <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl bg-dark-700 hover:bg-dark-600 text-slate-300 font-semibold text-xs transition">
             Abbrechen
           </button>
-          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30" id="btn-modal-save">
+          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/30">
             Einstellungen speichern
           </button>
         </div>
@@ -450,40 +633,15 @@
     </div>
   </div>
 
-  <!-- JavaScript Application Logic -->
+  <!-- JavaScript Logic -->
   <script>
-    // State
     let currentLang = 'de';
+    let currentUnit = 'mmol/L';
     let currentHours = 24;
+    let wizardSelectedUnit = 'mmol/L';
     let lineChartInstance = null;
     let donutChartInstance = null;
 
-    const i18n = {
-      de: {
-        connected: "Verbunden",
-        connecting: "Verbinde...",
-        offline: "Offline",
-        inRange: "Im Zielbereich",
-        high: "Erhöht",
-        low: "Niedrig",
-        critical: "Kritisch",
-        updatedAgo: "Aktualisiert: Vor {s} Sek.",
-        trendStable: "Trend: Stabil",
-      },
-      en: {
-        connected: "Connected",
-        connecting: "Connecting...",
-        offline: "Offline",
-        inRange: "In Range",
-        high: "Elevated",
-        low: "Low",
-        critical: "Critical",
-        updatedAgo: "Updated: {s} sec ago",
-        trendStable: "Trend: Stable",
-      }
-    };
-
-    // Initialize Charts on Page Load
     document.addEventListener('DOMContentLoaded', () => {
       initCharts();
       loadConfig();
@@ -491,13 +649,13 @@
       fetchHistoryData();
       fetchStats();
 
-      // Periodic Auto-refresh (every 10 seconds)
+      // Poll every 10 seconds for real-time live card updates
       setInterval(() => {
         fetchCurrentData();
         fetchStats();
       }, 10000);
 
-      // Periodic Chart Refresh (every 60 seconds)
+      // Refresh chart every 60s
       setInterval(() => {
         fetchHistoryData();
       }, 60000);
@@ -509,10 +667,14 @@
         const data = await res.json();
 
         const banner = document.getElementById('unconfigured-banner');
-        if (!data.configured) {
+        if (!data.configured || !data.setup_completed) {
           banner.classList.remove('hidden');
         } else {
           banner.classList.add('hidden');
+        }
+
+        if (data.unit) {
+          currentUnit = data.unit;
         }
 
         if (data.reading) {
@@ -536,7 +698,7 @@
           heroSensor.innerText = r.sensor_serial || 'FreeStyle Libre 3';
           heroTimestamp.innerText = `Messung: ${r.time_str}`;
 
-          // Status & Colors
+          // Colors
           heroCard.classList.remove('glow-green', 'glow-yellow', 'glow-red');
           if (r.measurement_color === 1) {
             heroCard.classList.add('glow-green');
@@ -580,9 +742,9 @@
           document.getElementById('stat-avg-unit').innerText = data.unit;
           document.getElementById('stat-a1c').innerText = data.estimated_hba1c.toFixed(1);
           document.getElementById('stat-sd').innerText = isMmol ? (data.std_dev / 18.0182).toFixed(1) : data.std_dev;
+          document.getElementById('stat-sd-unit').innerText = data.unit;
           document.getElementById('stat-cv').innerText = data.cv_percent.toFixed(1);
 
-          // Update Time in Range
           const tir = data.time_in_range;
           document.getElementById('val-very-high').innerText = `${tir.very_high_percent}%`;
           document.getElementById('val-high').innerText = `${tir.high_percent}%`;
@@ -593,7 +755,6 @@
           document.getElementById('tir-badge').innerText = `TIR: ${tir.target_percent}%`;
           document.getElementById('donut-center-val').innerText = `${tir.target_percent}%`;
 
-          // Update Donut Chart
           if (donutChartInstance) {
             donutChartInstance.data.datasets[0].data = [
               tir.very_low_percent,
@@ -624,10 +785,9 @@
           lineChartInstance.data.datasets[0].data = values;
           lineChartInstance.options.scales.y.title.text = data.unit;
 
-          // Adjust target bounds annotations / min max
           if (isMmol) {
             lineChartInstance.options.scales.y.suggestedMin = 3.0;
-            lineChartInstance.options.scales.y.suggestedMax = 15.0;
+            lineChartInstance.options.scales.y.suggestedMax = 14.0;
           } else {
             lineChartInstance.options.scales.y.suggestedMin = 50;
             lineChartInstance.options.scales.y.suggestedMax = 250;
@@ -641,7 +801,7 @@
     }
 
     function initCharts() {
-      // 1. Time in Range Donut Chart
+      // Donut Chart
       const donutCtx = document.getElementById('tirDonutChart').getContext('2d');
       donutChartInstance = new Chart(donutCtx, {
         type: 'doughnut',
@@ -649,13 +809,7 @@
           labels: ['Sehr niedrig', 'Niedrig', 'Im Zielbereich', 'Erhöht', 'Sehr hoch'],
           datasets: [{
             data: [0, 0, 100, 0, 0],
-            backgroundColor: [
-              '#dc2626', // Red 600
-              '#f97316', // Orange 500
-              '#10b981', // Emerald 500
-              '#eab308', // Yellow 500
-              '#ef4444', // Red 500
-            ],
+            backgroundColor: ['#dc2626', '#f97316', '#10b981', '#eab308', '#ef4444'],
             borderWidth: 0,
             hoverOffset: 4,
           }]
@@ -664,18 +818,11 @@
           responsive: true,
           maintainAspectRatio: false,
           cutout: '75%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => ` ${ctx.label}: ${ctx.parsed}%`
-              }
-            }
-          }
+          plugins: { legend: { display: false } }
         }
       });
 
-      // 2. Interactive Line Chart
+      // Line Chart
       const lineCtx = document.getElementById('glucoseLineChart').getContext('2d');
       lineChartInstance = new Chart(lineCtx, {
         type: 'line',
@@ -685,7 +832,7 @@
             label: 'Glukose',
             data: [],
             borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            backgroundColor: 'rgba(16, 185, 129, 0.12)',
             fill: true,
             tension: 0.35,
             pointRadius: 2,
@@ -696,10 +843,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: {
-            mode: 'index',
-            intersect: false,
-          },
+          interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -721,7 +865,7 @@
             y: {
               grid: { color: 'rgba(55, 65, 81, 0.4)' },
               ticks: { color: '#9ca3af', font: { size: 11 } },
-              title: { display: true, text: 'mg/dL', color: '#9ca3af' }
+              title: { display: true, text: 'mmol/L', color: '#9ca3af' }
             }
           }
         }
@@ -732,11 +876,9 @@
       currentHours = hours;
       ['12', '24', '48', '168'].forEach(h => {
         const btn = document.getElementById(`tf-${h}`);
-        if (h === String(hours)) {
-          btn.className = "px-3 py-1 rounded-lg bg-emerald-600 text-white font-semibold shadow transition";
-        } else {
-          btn.className = "px-3 py-1 rounded-lg text-slate-300 hover:text-white font-semibold transition";
-        }
+        btn.className = (h === String(hours))
+          ? "px-3 py-1 rounded-lg bg-emerald-600 text-white font-semibold shadow transition"
+          : "px-3 py-1 rounded-lg text-slate-300 hover:text-white font-semibold transition";
       });
       fetchHistoryData();
       fetchStats();
@@ -747,32 +889,98 @@
         const res = await fetch('/api/config');
         const cfg = await res.json();
 
+        currentUnit = cfg.unit || 'mmol/L';
+        document.getElementById('input-unit').value = currentUnit;
         document.getElementById('input-email').value = cfg.email || '';
         document.getElementById('input-region').value = cfg.region || 'eu';
-        document.getElementById('input-unit').value = cfg.unit || 'mg/dL';
         document.getElementById('input-interval').value = cfg.refresh_interval_seconds || 60;
-        document.getElementById('input-t-low').value = cfg.targets.target_low || 70;
-        document.getElementById('input-t-high').value = cfg.targets.target_high || 180;
         document.getElementById('input-autostart').checked = cfg.autostart_with_windows || false;
         document.getElementById('input-notifications').checked = cfg.enable_notifications || false;
+
+        // Populate thresholds according to current unit
+        updateSettingsThresholdInputs(cfg);
+
+        // If not completed setup, auto open wizard
+        if (!cfg.setup_completed && !cfg.email) {
+          openWizard(1);
+        }
       } catch (err) {
         console.error("Error loading config:", err);
       }
     }
 
+    function updateSettingsThresholdInputs(cfg) {
+      const isMmol = (document.getElementById('input-unit').value === 'mmol/L');
+      document.getElementById('settings-unit-hint').innerText = isMmol ? 'in mmol/L' : 'in mg/dL';
+
+      if (isMmol) {
+        document.getElementById('input-t-low').value = cfg.targets.target_low_mmol || 3.9;
+        document.getElementById('input-t-high').value = cfg.targets.target_high_mmol || 10.0;
+        document.getElementById('input-v-low').value = cfg.targets.very_low_mmol || 3.0;
+        document.getElementById('input-high').value = cfg.targets.high_mmol || 13.9;
+      } else {
+        document.getElementById('input-t-low').value = cfg.targets.target_low || 70;
+        document.getElementById('input-t-high').value = cfg.targets.target_high || 180;
+        document.getElementById('input-v-low').value = cfg.targets.very_low || 54;
+        document.getElementById('input-high').value = cfg.targets.high || 250;
+      }
+    }
+
+    function onUnitChange(newUnit) {
+      currentUnit = newUnit;
+      const isMmol = (newUnit === 'mmol/L');
+      document.getElementById('settings-unit-hint').innerText = isMmol ? 'in mmol/L' : 'in mg/dL';
+      
+      const tLow = parseFloat(document.getElementById('input-t-low').value);
+      const tHigh = parseFloat(document.getElementById('input-t-high').value);
+      const vLow = parseFloat(document.getElementById('input-v-low').value);
+      const high = parseFloat(document.getElementById('input-high').value);
+
+      if (isMmol && tLow > 30) {
+        // Convert from mg/dL to mmol/L
+        document.getElementById('input-t-low').value = (tLow / 18.0182).toFixed(1);
+        document.getElementById('input-t-high').value = (tHigh / 18.0182).toFixed(1);
+        document.getElementById('input-v-low').value = (vLow / 18.0182).toFixed(1);
+        document.getElementById('input-high').value = (high / 18.0182).toFixed(1);
+      } else if (!isMmol && tLow < 30) {
+        // Convert from mmol/L to mg/dL
+        document.getElementById('input-t-low').value = Math.round(tLow * 18.0182);
+        document.getElementById('input-t-high').value = Math.round(tHigh * 18.0182);
+        document.getElementById('input-v-low').value = Math.round(vLow * 18.0182);
+        document.getElementById('input-high').value = Math.round(high * 18.0182);
+      }
+    }
+
     async function saveSettings(e) {
       e.preventDefault();
+      const unit = document.getElementById('input-unit').value;
+      const isMmol = (unit === 'mmol/L');
+      
+      let tLow = parseFloat(document.getElementById('input-t-low').value);
+      let tHigh = parseFloat(document.getElementById('input-t-high').value);
+      let vLow = parseFloat(document.getElementById('input-v-low').value);
+      let high = parseFloat(document.getElementById('input-high').value);
+
+      // Convert to mg/dL for internal storage
+      const tLow_mg = isMmol ? (tLow * 18.0182) : tLow;
+      const tHigh_mg = isMmol ? (tHigh * 18.0182) : tHigh;
+      const vLow_mg = isMmol ? (vLow * 18.0182) : vLow;
+      const high_mg = isMmol ? (high * 18.0182) : high;
+
       const payload = {
         email: document.getElementById('input-email').value,
         password: document.getElementById('input-password').value || null,
         region: document.getElementById('input-region').value,
-        unit: document.getElementById('input-unit').value,
+        unit: unit,
         language: currentLang,
         refresh_interval_seconds: parseInt(document.getElementById('input-interval').value),
-        target_low: parseFloat(document.getElementById('input-t-low').value),
-        target_high: parseFloat(document.getElementById('input-t-high').value),
+        target_low: tLow_mg,
+        target_high: tHigh_mg,
+        very_low: vLow_mg,
+        high: high_mg,
         autostart_with_windows: document.getElementById('input-autostart').checked,
         enable_notifications: document.getElementById('input-notifications').checked,
+        setup_completed: true,
       };
 
       try {
@@ -786,28 +994,82 @@
           closeSettingsModal();
           fetchCurrentData();
           fetchHistoryData();
+          fetchStats();
         }
       } catch (err) {
         alert("Fehler beim Speichern der Einstellungen: " + err);
       }
     }
 
-    async function testConnectionLive() {
-      const email = document.getElementById('input-email').value;
-      const password = document.getElementById('input-password').value;
-      const region = document.getElementById('input-region').value;
-      const resultBox = document.getElementById('test-result-box');
+    // ==========================================
+    // 🧙‍♂️ WIZARD STEPPER LOGIC
+    // ==========================================
+    function openWizard(step = 1) {
+      document.getElementById('wizard-modal').classList.remove('hidden');
+      goToWizardStep(step);
+    }
+
+    function closeWizard() {
+      document.getElementById('wizard-modal').classList.add('hidden');
+    }
+
+    function setWizardUnit(unit) {
+      wizardSelectedUnit = unit;
+      const btnMmol = document.getElementById('w-unit-mmol');
+      const btnMgdl = document.getElementById('w-unit-mgdl');
+
+      if (unit === 'mmol/L') {
+        btnMmol.className = "py-3 px-2 rounded-xl border-2 border-emerald-500 bg-emerald-950/40 text-white font-bold text-xs flex flex-col items-center transition";
+        btnMgdl.className = "py-3 px-2 rounded-xl border border-dark-600 bg-dark-900 text-slate-300 font-semibold text-xs flex flex-col items-center hover:border-slate-500 transition";
+        
+        // Update Step 3 inputs to mmol/L defaults
+        document.getElementById('w-input-tlow').value = "3.9";
+        document.getElementById('w-input-thigh').value = "10.0";
+        document.getElementById('w-input-vlow').value = "3.0";
+        document.getElementById('w-input-high').value = "13.9";
+        document.getElementById('w-target-unit-badge').innerText = "Einheit: mmol/L";
+        document.querySelectorAll('.unit-text').forEach(el => el.innerText = "mmol/L");
+      } else {
+        btnMgdl.className = "py-3 px-2 rounded-xl border-2 border-emerald-500 bg-emerald-950/40 text-white font-bold text-xs flex flex-col items-center transition";
+        btnMmol.className = "py-3 px-2 rounded-xl border border-dark-600 bg-dark-900 text-slate-300 font-semibold text-xs flex flex-col items-center hover:border-slate-500 transition";
+        
+        // Update Step 3 inputs to mg/dL defaults
+        document.getElementById('w-input-tlow').value = "70";
+        document.getElementById('w-input-thigh').value = "180";
+        document.getElementById('w-input-vlow').value = "54";
+        document.getElementById('w-input-high').value = "250";
+        document.getElementById('w-target-unit-badge').innerText = "Einheit: mg/dL";
+        document.querySelectorAll('.unit-text').forEach(el => el.innerText = "mg/dL");
+      }
+    }
+
+    function goToWizardStep(step) {
+      [1, 2, 3, 4].forEach(s => {
+        document.getElementById(`wizard-step-${s}`).classList.add('hidden');
+      });
+      document.getElementById(`wizard-step-${step}`).classList.remove('hidden');
+
+      const progressMap = { 1: 25, 2: 50, 3: 75, 4: 100 };
+      document.getElementById('wizard-progress-bar').style.width = `${progressMap[step]}%`;
+      document.getElementById('wizard-step-label').innerText = `Schritt ${step} von 4`;
+    }
+
+    async function testWizardConnection() {
+      const email = document.getElementById('w-input-email').value;
+      const password = document.getElementById('w-input-password').value;
+      const region = document.getElementById('w-input-region').value;
+      const resBox = document.getElementById('w-test-result');
 
       if (!email || !password) {
-        resultBox.className = "mt-2 p-3 rounded-xl text-xs bg-red-900/40 text-red-300 border border-red-500/40";
-        resultBox.innerText = "Bitte geben Sie sowohl E-Mail als auch Passwort ein.";
-        resultBox.classList.remove('hidden');
+        resBox.className = "p-3 rounded-xl text-xs bg-red-900/40 text-red-300 border border-red-500/40";
+        resBox.innerText = "Bitte E-Mail und Passwort eingeben.";
+        resBox.classList.remove('hidden');
         return;
       }
 
-      resultBox.className = "mt-2 p-3 rounded-xl text-xs bg-dark-900 text-slate-300 border border-dark-600";
-      resultBox.innerText = "Verbindung zu Abbott Servern wird getestet...";
-      resultBox.classList.remove('hidden');
+      resBox.className = "p-3 rounded-xl text-xs bg-dark-900 text-slate-300 border border-dark-600";
+      resBox.innerText = "Verbindung zu Abbott wird geprüft...";
+      resBox.classList.remove('hidden');
 
       try {
         const res = await fetch('/api/test-connection', {
@@ -818,8 +1080,91 @@
         const data = await res.json();
 
         if (data.success) {
+          resBox.className = "p-3 rounded-xl text-xs bg-emerald-900/40 text-emerald-300 border border-emerald-500/40";
+          resBox.innerHTML = `✅ <strong>Verbunden!</strong> Patient: ${data.patient_name}<br>Sensor: ${data.sensor_serial} | Aktuell: <strong>${data.current_display} ${data.trend_symbol}</strong>`;
+        } else {
+          resBox.className = "p-3 rounded-xl text-xs bg-red-900/40 text-red-300 border border-red-500/40";
+          resBox.innerHTML = `❌ <strong>Fehler:</strong> ${data.message}`;
+        }
+      } catch (err) {
+        resBox.className = "p-3 rounded-xl text-xs bg-red-900/40 text-red-300 border border-red-500/40";
+        resBox.innerText = "Netzwerkfehler: " + err;
+      }
+    }
+
+    async function submitWizard() {
+      const email = document.getElementById('w-input-email').value;
+      const password = document.getElementById('w-input-password').value;
+      const region = document.getElementById('w-input-region').value;
+      const isMmol = (wizardSelectedUnit === 'mmol/L');
+
+      let tLow = parseFloat(document.getElementById('w-input-tlow').value);
+      let tHigh = parseFloat(document.getElementById('w-input-thigh').value);
+      let vLow = parseFloat(document.getElementById('w-input-vlow').value);
+      let high = parseFloat(document.getElementById('w-input-high').value);
+
+      const payload = {
+        email: email,
+        password: password,
+        region: region,
+        unit: wizardSelectedUnit,
+        language: document.getElementById('w-input-lang').value,
+        refresh_interval_seconds: 60,
+        target_low: isMmol ? (tLow * 18.0182) : tLow,
+        target_high: isMmol ? (tHigh * 18.0182) : tHigh,
+        very_low: isMmol ? (vLow * 18.0182) : vLow,
+        high: isMmol ? (high * 18.0182) : high,
+        autostart_with_windows: document.getElementById('w-input-autostart').checked,
+        enable_notifications: document.getElementById('w-input-notify').checked,
+        setup_completed: true,
+      };
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+          goToWizardStep(4);
+          fetchCurrentData();
+          fetchHistoryData();
+          fetchStats();
+        }
+      } catch (err) {
+        alert("Fehler: " + err);
+      }
+    }
+
+    async function testSettingsConnectionLive() {
+      const email = document.getElementById('input-email').value;
+      const password = document.getElementById('input-password').value;
+      const region = document.getElementById('input-region').value;
+      const resultBox = document.getElementById('test-result-box');
+
+      if (!email) {
+        resultBox.className = "mt-2 p-3 rounded-xl text-xs bg-red-900/40 text-red-300 border border-red-500/40";
+        resultBox.innerText = "Bitte geben Sie eine E-Mail-Adresse ein.";
+        resultBox.classList.remove('hidden');
+        return;
+      }
+
+      resultBox.className = "mt-2 p-3 rounded-xl text-xs bg-dark-900 text-slate-300 border border-dark-600";
+      resultBox.innerText = "Verbindung wird geprüft...";
+      resultBox.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/api/test-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: password || '', region })
+        });
+        const data = await res.json();
+
+        if (data.success) {
           resultBox.className = "mt-2 p-3 rounded-xl text-xs bg-emerald-900/40 text-emerald-300 border border-emerald-500/40";
-          resultBox.innerHTML = `✅ <strong>Erfolgreich!</strong> Verbunden mit: ${data.patient_name}<br>Sensor: ${data.sensor_serial} | Aktueller Wert: <strong>${data.current_mgdl} mg/dL ${data.trend_symbol}</strong>`;
+          resultBox.innerHTML = `✅ <strong>Verbunden!</strong> Patient: ${data.patient_name}<br>Sensor: ${data.sensor_serial} | Aktuell: <strong>${data.current_display} ${data.trend_symbol}</strong>`;
         } else {
           resultBox.className = "mt-2 p-3 rounded-xl text-xs bg-red-900/40 text-red-300 border border-red-500/40";
           resultBox.innerHTML = `❌ <strong>Fehlgeschlagen:</strong> ${data.message}`;
@@ -842,44 +1187,12 @@
     }
 
     function openSettingsModal() {
+      loadConfig();
       document.getElementById('settings-modal').classList.remove('hidden');
     }
 
     function closeSettingsModal() {
       document.getElementById('settings-modal').classList.add('hidden');
-    }
-
-    function toggleLanguage() {
-      currentLang = currentLang === 'de' ? 'en' : 'de';
-      // Apply translations to key static texts
-      if (currentLang === 'en') {
-        document.getElementById('nav-settings-text').innerText = "Account & Settings";
-        document.getElementById('tir-card-title').innerText = "Time in Range (24 Hours)";
-        document.getElementById('tir-card-subtitle').innerText = "Clinical target: > 70% in normal range (70–180 mg/dL)";
-        document.getElementById('stat-lbl-avg').innerText = "Ø Average (24h)";
-        document.getElementById('stat-lbl-a1c').innerText = "Estimated HbA1c (GMI)";
-        document.getElementById('stat-lbl-sd').innerText = "Standard Deviation (SD)";
-        document.getElementById('stat-lbl-cv').innerText = "Coefficient of Variation (CV)";
-        document.getElementById('chart-title').innerText = "Glucose Trend Curve (CGM)";
-        document.getElementById('chart-desc').innerText = "Real-time readings from local SQLite archive";
-        document.getElementById('btn-export-csv').innerText = "Export CSV";
-        document.getElementById('priv-title').innerText = "100% Privacy & Zero Third-Party Servers (GDPR Compliant)";
-        document.getElementById('taskbar-active-lbl').innerText = "Taskbar Icon: Active";
-      } else {
-        document.getElementById('nav-settings-text').innerText = "Konto & Einstellungen";
-        document.getElementById('tir-card-title').innerText = "Time in Range (24 Stunden)";
-        document.getElementById('tir-card-subtitle').innerText = "Klinischer Standardzielbereich: > 70% im Normalbereich (70–180 mg/dL)";
-        document.getElementById('stat-lbl-avg').innerText = "Ø Durchschnitt (24h)";
-        document.getElementById('stat-lbl-a1c').innerText = "Geschätzter HbA1c (GMI)";
-        document.getElementById('stat-lbl-sd').innerText = "Standardabweichung (SD)";
-        document.getElementById('stat-lbl-cv').innerText = "Variationskoeffizient (CV)";
-        document.getElementById('chart-title').innerText = "Glukose-Verlaufskurve (CGM)";
-        document.getElementById('chart-desc').innerText = "Echtzeit-Messwerte aus dem lokalen SQLite-Archiv";
-        document.getElementById('btn-export-csv').innerText = "CSV-Export";
-        document.getElementById('priv-title').innerText = "100% Datenschutz & Keine Server (DSGVO-Konform)";
-        document.getElementById('taskbar-active-lbl').innerText = "Taskleisten-Icon: Aktiv";
-      }
-      fetchCurrentData();
     }
   </script>
 </body>
