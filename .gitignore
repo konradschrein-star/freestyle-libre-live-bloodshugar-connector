@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Databases and Configs (Keep personal medical data and credentials private)
+config.json
+*.db
+*.sqlite3
+glucose_export.csv
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# PyInstaller / Build artifacts
+build/
+dist/
+*.spec
+
+# IDEs
+.vscode/
+.idea/
+*.swp
